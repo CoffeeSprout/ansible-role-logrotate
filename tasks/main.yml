@@ -1,0 +1,31 @@
+---
+# Main tasks file for coffeesprout.logrotate
+
+- name: Include installation tasks
+  include_tasks: install.yml
+  when: logrotate_install | default(true)
+  tags:
+    - install
+    - packages
+
+- name: Include global configuration tasks
+  include_tasks: configure.yml
+  when: logrotate_manage_global_config | default(true)
+  tags:
+    - configure
+    - config
+
+- name: Include custom configuration tasks
+  include_tasks: custom.yml
+  when: logrotate_custom_configs | length > 0
+  tags:
+    - configure
+    - config
+    - custom
+
+- name: Generate documentation
+  include_tasks: documentation.yml
+  when: doc_generate | default(true)
+  tags:
+    - docs
+    - documentation

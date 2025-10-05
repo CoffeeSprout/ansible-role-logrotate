@@ -1,0 +1,75 @@
+---
+- name: Prepare Debian 12
+  hosts: debian12-logrotate
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Update and install packages (Debian 12)
+      raw: "apt-get update && apt-get install -y python3 sudo cron logrotate"
+    - name: Gather facts
+      setup:
+
+- name: Prepare Debian 13
+  hosts: debian13-logrotate
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Update and install packages (Debian 13)
+      raw: "apt-get update && apt-get install -y python3 sudo cron logrotate"
+    - name: Gather facts
+      setup:
+
+- name: Prepare AlmaLinux 8
+  hosts: alma8-logrotate
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Install Python 3.11 and packages (AlmaLinux 8)
+      raw: "dnf install -y python3.11 sudo cronie logrotate && alternatives --set python3 /usr/bin/python3.11"
+    - name: Gather facts
+      setup:
+
+- name: Prepare AlmaLinux 9
+  hosts: alma9-logrotate
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Install packages (AlmaLinux 9)
+      raw: "dnf install -y python3 sudo cronie logrotate"
+    - name: Gather facts
+      setup:
+
+- name: Create test environment
+  hosts: all
+  become: true
+  tasks:
+    - name: Create test log directory
+      file:
+        path: /var/log/testapp
+        state: directory
+        mode: '0755'
+
+    - name: Create test log files
+      copy:
+        content: |
+          Test log entry 1
+          Test log entry 2
+          Test log entry 3
+        dest: "/var/log/testapp/{{ item }}.log"
+        mode: '0644'
+      loop:
+        - application
+        - access
+        - error
+
+    - name: Create a non-managed config to ensure we don't touch it
+      copy:
+        content: |
+          # Non-managed test config
+          /var/log/testapp/unmanaged.log {
+              rotate 5
+              weekly
+              missingok
+          }
+        dest: /etc/logrotate.d/unmanaged-test.conf
+        mode: '0644'

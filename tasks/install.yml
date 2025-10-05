@@ -1,0 +1,34 @@
+---
+# Installation tasks for logrotate
+
+- name: Install logrotate (Debian/Ubuntu)
+  apt:
+    name: logrotate
+    state: present
+    update_cache: yes
+    cache_valid_time: 3600
+  when: ansible_os_family == 'Debian'
+
+- name: Ensure logrotate is installed (RedHat/AlmaLinux/Rocky)
+  package:
+    name: logrotate
+    state: present
+  when: ansible_os_family == 'RedHat'
+
+- name: Install zstd compression utility (Debian/Ubuntu)
+  apt:
+    name: zstd
+    state: present
+  when:
+    - ansible_os_family == 'Debian'
+    - logrotate_install_zstd | default(false)
+    - logrotate_compress_command == 'zstd'
+
+- name: Install zstd compression utility (RedHat/AlmaLinux/Rocky)
+  package:
+    name: zstd
+    state: present
+  when:
+    - ansible_os_family == 'RedHat'
+    - logrotate_install_zstd | default(false)
+    - logrotate_compress_command == 'zstd'

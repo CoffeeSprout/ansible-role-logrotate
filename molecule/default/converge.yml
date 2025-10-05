@@ -1,0 +1,32 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    # Skip package installation - handled in prepare step for EL8 compatibility
+    logrotate_install: false
+
+    # Documentation output for testing
+    doc_output_dir: "/tmp/ansible-docs"
+
+    # Test custom configurations
+    logrotate_custom_configs:
+      - name: testapp-access
+        paths:
+          - /var/log/testapp/access.log
+        rotate: 14
+        interval: daily
+        size: 10M
+        compress: true
+        delaycompress: true
+        postrotate: "echo 'Rotated access log'"
+
+      - name: testapp-error
+        paths:
+          - /var/log/testapp/error.log
+        rotate: 30
+        interval: daily
+        compress: true
+
+  roles:
+    - role: coffeesprout.logrotate

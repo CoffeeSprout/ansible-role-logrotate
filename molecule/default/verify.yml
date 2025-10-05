@@ -1,0 +1,219 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  tasks:
+    # Package installation tests
+    - name: Check that logrotate is installed
+      command: logrotate --version
+      changed_when: false
+      register: logrotate_version
+
+    - name: Verify logrotate version output
+      assert:
+        that:
+          - logrotate_version.rc == 0
+          - "'logrotate' in logrotate_version.stdout"
+        fail_msg: "logrotate is not properly installed"
+        success_msg: "logrotate is installed"
+
+    # Global configuration tests
+    - name: Check that global logrotate.conf exists
+      stat:
+        path: /etc/logrotate.conf
+      register: logrotate_conf
+
+    - name: Verify global config exists
+      assert:
+        that:
+          - logrotate_conf.stat.exists
+          - logrotate_conf.stat.mode == '0644'
+        fail_msg: "Global logrotate.conf does not exist or has wrong permissions"
+        success_msg: "Global logrotate.conf exists with correct permissions"
+
+    - name: Read global logrotate configuration
+      slurp:
+        path: /etc/logrotate.conf
+      register: logrotate_conf_content
+
+    - name: Parse global configuration
+      set_fact:
+        config_text: "{{ logrotate_conf_content.content | b64decode }}"
+
+    - name: Verify configuration contains expected settings
+      assert:
+        that:
+          - "'Managed by Ansible' in config_text"
+          - "'daily' in config_text"
+          - "'rotate 12' in config_text"
+          - "'compress' in config_text"
+          - "'#compress' not in config_text"
+          - "'dateext' in config_text"
+          - "'delaycompress' in config_text"
+          - "'size 100M' in config_text"
+          - "'include /etc/logrotate.d' in config_text"
+        fail_msg: "Global configuration missing expected settings"
+        success_msg: "Global configuration contains all expected settings"
+
+    # Note: Backups are created automatically by template module with .YYYY-MM-DD@HH:MM:SS~ format
+    # when config changes, so we don't test for a specific backup file here
+
+    # Custom configuration tests
+    - name: Check custom configuration for testapp-access
+      stat:
+        path: /etc/logrotate.d/managed-testapp-access.conf
+      register: custom_access
+
+    - name: Verify custom access config exists
+      assert:
+        that:
+          - custom_access.stat.exists
+          - custom_access.stat.mode == '0644'
+        fail_msg: "Custom testapp-access config missing or wrong permissions"
+        success_msg: "Custom testapp-access config exists"
+
+    - name: Read custom access configuration
+      slurp:
+        path: /etc/logrotate.d/managed-testapp-access.conf
+      register: custom_access_content
+
+    - name: Parse custom access configuration
+      set_fact:
+        access_config: "{{ custom_access_content.content | b64decode }}"
+
+    - name: Verify custom access config contents
+      assert:
+        that:
+          - "'/var/log/testapp/access.log' in access_config"
+          - "'rotate 14' in access_config"
+          - "'daily' in access_config"
+          - "'size 10M' in access_config"
+          - "'compress' in access_config"
+          - "'delaycompress' in access_config"
+          - "'postrotate' in access_config"
+        fail_msg: "Custom access config missing expected settings"
+        success_msg: "Custom access config contains all expected settings"
+
+    - name: Check custom configuration for testapp-error
+      stat:
+        path: /etc/logrotate.d/managed-testapp-error.conf
+      register: custom_error
+
+    - name: Verify custom error config exists
+      assert:
+        that:
+          - custom_error.stat.exists
+        fail_msg: "Custom testapp-error config does not exist"
+        success_msg: "Custom testapp-error config exists"
+
+    # Non-managed config preservation test
+    - name: Check that non-managed config still exists
+      stat:
+        path: /etc/logrotate.d/unmanaged-test.conf
+      register: unmanaged_config
+
+    - name: Verify non-managed config was not touched
+      assert:
+        that:
+          - unmanaged_config.stat.exists
+        fail_msg: "Non-managed config was removed (should be preserved!)"
+        success_msg: "Non-managed config preserved correctly"
+
+    - name: Read non-managed configuration
+      slurp:
+        path: /etc/logrotate.d/unmanaged-test.conf
+      register: unmanaged_content
+
+    - name: Verify non-managed config was not modified
+      assert:
+        that:
+          - "'Non-managed test config' in (unmanaged_content.content | b64decode)"
+          - "'unmanaged.log' in (unmanaged_content.content | b64decode)"
+        fail_msg: "Non-managed config was modified"
+        success_msg: "Non-managed config unchanged"
+
+    # Configuration validation test
+    - name: Validate logrotate configuration syntax
+      command: logrotate -d /etc/logrotate.conf
+      changed_when: false
+      register: validation_result
+      failed_when: validation_result.rc != 0
+
+    - name: Verify validation succeeded
+      assert:
+        that:
+          - validation_result.rc == 0
+        fail_msg: "logrotate configuration validation failed"
+        success_msg: "logrotate configuration is valid"
+
+    # Documentation generation tests
+    - name: Check that markdown documentation was generated
+      stat:
+        path: "/tmp/ansible-docs/{{ inventory_hostname }}/logrotate.md"
+      register: logrotate_md_doc
+      delegate_to: localhost
+      become: false
+
+    - name: Verify markdown documentation exists
+      assert:
+        that:
+          - logrotate_md_doc.stat.exists
+        fail_msg: "Markdown documentation was not generated"
+        success_msg: "Markdown documentation exists"
+
+    - name: Read markdown documentation
+      slurp:
+        path: "/tmp/ansible-docs/{{ inventory_hostname }}/logrotate.md"
+      register: logrotate_md_content
+      delegate_to: localhost
+      become: false
+
+    - name: Verify markdown documentation contains key information
+      assert:
+        that:
+          - "'coffeesprout.logrotate' in (logrotate_md_content.content | b64decode)"
+          - "'daily' in (logrotate_md_content.content | b64decode)"
+          - "'testapp-access' in (logrotate_md_content.content | b64decode)"
+        fail_msg: "Documentation missing expected content"
+        success_msg: "Documentation contains expected content"
+
+    - name: Read JSON documentation
+      slurp:
+        path: "/tmp/ansible-docs/{{ inventory_hostname }}/logrotate.json"
+      register: logrotate_json_content
+      delegate_to: localhost
+      become: false
+
+    - name: Parse JSON documentation
+      set_fact:
+        logrotate_json_data: "{{ logrotate_json_content.content | b64decode | from_json }}"
+
+    - name: Verify JSON documentation structure
+      assert:
+        that:
+          - logrotate_json_data.role == "coffeesprout.logrotate"
+          - logrotate_json_data.global_config.settings.interval == "daily"
+          - logrotate_json_data.global_config.settings.rotate_count == 12
+          - logrotate_json_data.custom_configs | length == 2
+        fail_msg: "JSON documentation structure is invalid"
+        success_msg: "JSON documentation structure is correct"
+
+    # File permissions tests
+    - name: Verify all config files have correct permissions
+      stat:
+        path: "{{ item }}"
+      register: config_perms
+      loop:
+        - /etc/logrotate.conf
+        - /etc/logrotate.d/managed-testapp-access.conf
+        - /etc/logrotate.d/managed-testapp-error.conf
+
+    - name: Check all configs are readable
+      assert:
+        that:
+          - item.stat.mode == '0644'
+        fail_msg: "Config file {{ item.item }} has wrong permissions"
+        success_msg: "All config files have correct permissions"
+      loop: "{{ config_perms.results }}"
+      loop_control:
+        label: "{{ item.item }}"

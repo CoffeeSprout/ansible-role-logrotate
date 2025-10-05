@@ -1,0 +1,62 @@
+# Managed by Ansible - coffeesprout.logrotate role
+# See defaults/main.yml for configuration options
+#
+# Original distribution config backed up to: /etc/logrotate.conf.original
+# Manual edits to this file will be overwritten on next Ansible run
+
+# Rotation interval (changed from "weekly" default)
+{{ logrotate_interval }}
+
+# Number of rotations to keep (changed from 4 default)
+rotate {{ logrotate_rotate_count }}
+
+{% if logrotate_create %}
+# Create new log files after rotating old ones
+create
+{% endif %}
+
+{% if logrotate_dateext %}
+# Use date as suffix for rotated files (YYYYMMDD format)
+# Changed from distribution default on Debian (was disabled)
+dateext
+{% endif %}
+
+{% if logrotate_compress %}
+# Compression enabled (changed from disabled default)
+compress
+{% if logrotate_compress_command != 'gzip' %}
+# Custom compression command
+compresscmd {{ logrotate_compress_command }}
+{% if logrotate_compress_command == 'zstd' %}
+compressext .zst
+uncompresscmd /usr/bin/unzstd
+{% endif %}
+{% endif %}
+{% if logrotate_compress_options %}
+compressoptions {{ logrotate_compress_options }}
+{% endif %}
+{% if logrotate_delaycompress %}
+# Delay compression by one cycle (recommended for active services)
+delaycompress
+{% endif %}
+{% else %}
+# Compression disabled
+#compress
+{% endif %}
+
+{% if logrotate_size %}
+# Size-based rotation threshold (NEW)
+# Rotate if log exceeds this size, regardless of time interval
+size {{ logrotate_size }}
+{% endif %}
+
+{% if logrotate_maxsize %}
+# Maximum size (hard limit) - forces rotation even if time hasn't passed
+maxsize {{ logrotate_maxsize }}
+{% endif %}
+
+# Include drop-in configurations
+include /etc/logrotate.d
+
+# Note: System logs (wtmp, btmp) are usually managed by distribution-provided
+# configs in /etc/logrotate.d/ and should not be duplicated here

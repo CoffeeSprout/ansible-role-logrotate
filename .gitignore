@@ -1,0 +1,13 @@
+*.retry
+*/__pycache__
+*.pyc
+.cache
+.pytest_cache
+*.egg-info
+.molecule
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store

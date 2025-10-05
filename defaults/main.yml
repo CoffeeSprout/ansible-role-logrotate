@@ -1,0 +1,101 @@
+---
+# defaults file for coffeesprout.logrotate
+
+# Package installation
+logrotate_install: true
+logrotate_install_zstd: false  # Install zstd for better compression
+
+# Global configuration management
+# Set to false to only manage custom configs without touching /etc/logrotate.conf
+logrotate_manage_global_config: true
+
+# Rotation interval
+# Options: daily, weekly, monthly
+# Default changed from "weekly" (distribution default) to "daily"
+logrotate_interval: "daily"
+
+# Number of rotations to keep
+# Default changed from 4 (distribution default) to 12
+# With daily rotation: keeps 12 days of logs
+# With weekly rotation: keeps 12 weeks of logs
+logrotate_rotate_count: 12
+
+# Create new log files after rotation
+logrotate_create: true
+
+# Use date as suffix for rotated files (recommended)
+# Debian default: disabled (just .1, .2, etc.)
+# Our default: enabled (creates .20251005 format)
+logrotate_dateext: true
+
+# Compression settings
+# Distribution default: disabled (saves no disk space!)
+# Our default: enabled (saves 50-70% disk space)
+logrotate_compress: true
+
+# Compression command to use
+# Options: "gzip" (universal), "zstd" (better compression, faster)
+# Note: zstd requires logrotate_install_zstd: true
+logrotate_compress_command: "gzip"
+
+# Additional compression options
+# Examples: "-9" for maximum gzip compression, "-19" for maximum zstd
+logrotate_compress_options: ""
+
+# Delay compression by one rotation
+# Recommended: prevents issues with services still writing to rotated logs
+logrotate_delaycompress: true
+
+# Size-based rotation threshold
+# Rotate logs when they exceed this size, regardless of time interval
+# Examples: "50M", "100M", "1G"
+# Empty string disables size-based rotation
+logrotate_size: "100M"
+
+# Maximum size (hard limit)
+# Force rotation even if time interval hasn't passed
+# Empty string disables
+logrotate_maxsize: ""
+
+# Custom logrotate configurations
+# Each config will be created as /etc/logrotate.d/managed-{name}.conf
+# IMPORTANT: Only files with "managed-" prefix are managed by this role
+# Other files in /etc/logrotate.d are left untouched
+logrotate_custom_configs: []
+# Example configurations:
+#
+# - name: virtualmin-large
+#   paths:
+#     - /var/log/virtualmin/*_access_log
+#     - /var/log/virtualmin/*_error_log
+#   rotate: 12
+#   interval: weekly
+#   size: 100M
+#   compress: true
+#   delaycompress: true
+#   sharedscripts: true
+#   postrotate: "systemctl reload httpd"
+#
+# - name: proftpd-sftp
+#   paths:
+#     - /var/log/proftpd/sftp.log
+#   rotate: 30
+#   interval: daily
+#   size: 50M
+#   compress: true
+#   delaycompress: true
+#   postrotate: "systemctl reload proftpd"
+#
+# - name: application-logs
+#   paths:
+#     - /var/log/myapp/*.log
+#   rotate: 7
+#   interval: daily
+#   maxsize: 200M
+#   compress: true
+#   create: "0640 appuser appgroup"
+
+# Documentation generation settings
+doc_generate: true
+doc_output_dir: "{{ playbook_dir }}/documentation"
+doc_format: "both"  # Options: markdown, json, both

@@ -1,0 +1,217 @@
+# Logrotate Configuration
+
+**Server**: {{ inventory_hostname }}
+**Role**: coffeesprout.logrotate
+**Generated**: {{ ansible_date_time.iso8601 }}
+
+## Configuration Summary
+
+| Setting | Value | Distribution Default |
+|---------|-------|---------------------|
+| **Rotation Interval** | {{ logrotate_interval }} | weekly |
+| **Rotations Kept** | {{ logrotate_rotate_count }} | 4 |
+| **Compression** | {{ 'Enabled (' + logrotate_compress_command + ')' if logrotate_compress else 'Disabled' }} | Disabled |
+| **Date Extension** | {{ 'Enabled' if logrotate_dateext else 'Disabled' }} | {% if ansible_os_family == 'Debian' %}Disabled{% else %}Enabled{% endif %} |
+| **Size Threshold** | {{ logrotate_size if logrotate_size else 'Not set' }} | Not set |
+| **Delay Compression** | {{ 'Yes' if logrotate_delaycompress else 'No' }} | No |
+
+## Global Configuration
+
+**File**: `/etc/logrotate.conf`
+**Backup**: `/etc/logrotate.conf.original` (first-run backup)
+
+### Rotation Schedule
+- **Interval**: {{ logrotate_interval }}
+- **Keep**: {{ logrotate_rotate_count }} rotated logs
+{% if logrotate_size %}
+- **Size trigger**: Rotate if log exceeds {{ logrotate_size }}
+{% endif %}
+{% if logrotate_maxsize %}
+- **Hard limit**: Force rotation at {{ logrotate_maxsize }}
+{% endif %}
+
+### Compression
+{% if logrotate_compress %}
+- **Status**: Enabled
+- **Command**: `{{ logrotate_compress_command }}`
+{% if logrotate_compress_command == 'zstd' %}
+- **Extension**: `.zst`
+- **Expected savings**: 60-75% disk space
+{% else %}
+- **Extension**: `.gz`
+- **Expected savings**: 50-70% disk space
+{% endif %}
+{% if logrotate_compress_options %}
+- **Options**: `{{ logrotate_compress_options }}`
+{% endif %}
+- **Delay**: {{ 'Yes (safer for active services)' if logrotate_delaycompress else 'No' }}
+{% else %}
+- **Status**: Disabled (no disk space savings)
+{% endif %}
+
+## Custom Configurations
+
+{% if logrotate_custom_configs | length > 0 %}
+The following custom configurations are managed in `/etc/logrotate.d/`:
+
+{% for config in logrotate_custom_configs %}
+### {{ config.name }}
+
+**File**: `/etc/logrotate.d/managed-{{ config.name }}.conf`
+
+**Log Paths**:
+{% for path in config.paths %}
+- `{{ path }}`
+{% endfor %}
+
+**Settings**:
+- Rotate: {{ config.rotate | default('inherited from global') }}
+- Interval: {{ config.interval | default('inherited from global') }}
+{% if config.size is defined %}
+- Size trigger: {{ config.size }}
+{% endif %}
+{% if config.maxsize is defined %}
+- Maximum size: {{ config.maxsize }}
+{% endif %}
+- Compression: {{ 'Enabled' if config.compress | default(true) else 'Disabled' }}
+{% if config.postrotate is defined %}
+- Post-rotation action: `{{ config.postrotate }}`
+{% endif %}
+
+{% endfor %}
+{% else %}
+No custom configurations are currently managed.
+
+Application-specific configurations may exist in `/etc/logrotate.d/` but are not managed by this role.
+{% endif %}
+
+## File Locations
+
+### Configuration Files
+- **Global config**: `/etc/logrotate.conf`
+- **Drop-in configs**: `/etc/logrotate.d/`
+- **Managed configs**: `/etc/logrotate.d/managed-*.conf`
+- **Original backup**: `/etc/logrotate.conf.original`
+
+### State and Status
+- **State file**: `/var/lib/logrotate/logrotate.status` (tracks last rotation)
+- **Cron job**: `/etc/cron.daily/logrotate` (automatic execution)
+
+## Service Management
+
+### Check Last Rotation Times
+
+```bash
+# View rotation status for all logs
+sudo cat /var/lib/logrotate/logrotate.status
+
+# Check specific log
+sudo grep "specific.log" /var/lib/logrotate/logrotate.status
+```
+
+### Manual Rotation
+
+```bash
+# Dry-run (shows what would happen)
+sudo logrotate -d /etc/logrotate.conf
+
+# Force rotation now
+sudo logrotate -f /etc/logrotate.conf
+
+# Verbose output
+sudo logrotate -v /etc/logrotate.conf
+```
+
+### Validate Configuration
+
+```bash
+# Test global configuration
+sudo logrotate -d /etc/logrotate.conf
+
+# Test specific custom config
+sudo logrotate -d /etc/logrotate.d/managed-<name>.conf
+```
+
+## Common Tasks
+
+### Check Current Disk Usage
+
+```bash
+# Overall log directory size
+sudo du -sh /var/log
+
+# Largest log files
+sudo du -sh /var/log/* | sort -hr | head -10
+
+# Show compression savings
+sudo du -sh /var/log/*.gz /var/log/*.zst 2>/dev/null
+```
+
+### Monitor Rotation
+
+```bash
+# Watch log directory during rotation
+watch -n 1 'ls -lh /var/log/*.log'
+
+# Check if rotation is working
+sudo grep "$(date +%Y%m%d)" /var/lib/logrotate/logrotate.status
+```
+
+## Troubleshooting
+
+### Logs Not Rotating
+
+**Check cron execution**:
+```bash
+# Verify daily cron is running
+sudo systemctl status cron  # Debian
+sudo systemctl status crond  # RHEL/AlmaLinux
+
+# Check cron logs
+sudo journalctl -u cron | grep logrotate
+```
+
+**Check configuration syntax**:
+```bash
+sudo logrotate -d /etc/logrotate.conf
+```
+
+### Disk Still Full
+
+**Identify large files**:
+```bash
+# Find logs over 100MB
+sudo find /var/log -type f -size +100M -exec ls -lh {} \;
+
+# Check if compression is working
+ls -lh /var/log/*.gz /var/log/*.zst
+```
+
+**Force immediate rotation**:
+```bash
+sudo logrotate -f /etc/logrotate.conf
+```
+
+### Configuration Changes Not Applied
+
+**Verify file contents**:
+```bash
+# Check global config
+sudo cat /etc/logrotate.conf
+
+# Check custom configs
+ls -la /etc/logrotate.d/managed-*
+```
+
+**Re-run Ansible**:
+```bash
+ansible-playbook -i inventory playbook.yml --tags logrotate
+```
+
+## Notes
+
+- Logrotate runs daily via `/etc/cron.daily/logrotate`
+- Configurations with `managed-` prefix are managed by Ansible
+- Other files in `/etc/logrotate.d/` are not touched
+- Manual edits to managed files will be overwritten on next Ansible run
+- Original distribution config is preserved in `/etc/logrotate.conf.original`

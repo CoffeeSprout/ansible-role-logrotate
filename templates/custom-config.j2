@@ -1,0 +1,58 @@
+# Managed by Ansible - coffeesprout.logrotate role
+# Custom configuration: {{ item.name }}
+# DO NOT EDIT - Changes will be overwritten
+
+{{ item.paths | join(' ') }} {
+{% if item.rotate is defined %}
+    rotate {{ item.rotate }}
+{% endif %}
+{% if item.interval is defined %}
+    {{ item.interval }}
+{% endif %}
+{% if item.size is defined %}
+    size {{ item.size }}
+{% endif %}
+{% if item.maxsize is defined %}
+    maxsize {{ item.maxsize }}
+{% endif %}
+{% if item.minsize is defined %}
+    minsize {{ item.minsize }}
+{% endif %}
+{% if item.compress | default(true) %}
+    compress
+{% else %}
+    nocompress
+{% endif %}
+{% if item.delaycompress | default(true) %}
+    delaycompress
+{% endif %}
+{% if item.dateext | default(true) %}
+    dateext
+{% endif %}
+    missingok
+    notifempty
+{% if item.create is defined %}
+    create {{ item.create }}
+{% endif %}
+{% if item.sharedscripts | default(false) %}
+    sharedscripts
+{% endif %}
+{% if item.copytruncate | default(false) %}
+    copytruncate
+{% endif %}
+{% if item.prerotate is defined %}
+    prerotate
+        {{ item.prerotate }}
+    endscript
+{% endif %}
+{% if item.postrotate is defined %}
+    postrotate
+        {{ item.postrotate }}
+    endscript
+{% endif %}
+{% if item.lastaction is defined %}
+    lastaction
+        {{ item.lastaction }}
+    endscript
+{% endif %}
+}

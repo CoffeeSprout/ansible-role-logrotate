@@ -1,0 +1,51 @@
+{
+  "role": "coffeesprout.logrotate",
+  "server": "{{ inventory_hostname }}",
+  "generated": "{{ ansible_date_time.iso8601 }}",
+  "os_family": "{{ ansible_os_family }}",
+  "global_config": {
+    "managed": {{ logrotate_manage_global_config | to_json }},
+    "file": "/etc/logrotate.conf",
+    "backup": "/etc/logrotate.conf.original",
+    "settings": {
+      "interval": "{{ logrotate_interval }}",
+      "rotate_count": {{ logrotate_rotate_count }},
+      "create": {{ logrotate_create | to_json }},
+      "dateext": {{ logrotate_dateext | to_json }},
+      "compress": {{ logrotate_compress | to_json }},
+      "compress_command": "{{ logrotate_compress_command }}",
+      "compress_options": "{{ logrotate_compress_options }}",
+      "delaycompress": {{ logrotate_delaycompress | to_json }},
+      "size": "{{ logrotate_size }}",
+      "maxsize": "{{ logrotate_maxsize }}"
+    }
+  },
+  "custom_configs": [
+{% for config in logrotate_custom_configs %}
+    {
+      "name": "{{ config.name }}",
+      "file": "/etc/logrotate.d/managed-{{ config.name }}.conf",
+      "paths": {{ config.paths | to_json }},
+      "rotate": {{ config.rotate | default('null') }},
+      "interval": "{{ config.interval | default('') }}",
+      "size": "{{ config.size | default('') }}",
+      "maxsize": "{{ config.maxsize | default('') }}",
+      "compress": {{ config.compress | default(true) | to_json }},
+      "delaycompress": {{ config.delaycompress | default(true) | to_json }},
+      "postrotate": "{{ config.postrotate | default('') }}"
+    }{% if not loop.last %},{% endif %}
+
+{% endfor %}
+  ],
+  "files": {
+    "global_config": "/etc/logrotate.conf",
+    "dropins_directory": "/etc/logrotate.d",
+    "state_file": "/var/lib/logrotate/logrotate.status",
+    "cron_job": "/etc/cron.daily/logrotate"
+  },
+  "commands": {
+    "validate": "logrotate -d /etc/logrotate.conf",
+    "force_rotation": "logrotate -f /etc/logrotate.conf",
+    "check_status": "cat /var/lib/logrotate/logrotate.status"
+  }
+}

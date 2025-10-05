@@ -1,0 +1,31 @@
+---
+galaxy_info:
+  role_name: logrotate
+  namespace: coffeesprout
+  author: Barry van Someren
+  description: Manage logrotate configuration with improved defaults and custom configs
+  company: CoffeeSprout
+  license: BSD-2-Clause
+  min_ansible_version: "2.12"
+
+  platforms:
+    - name: Debian
+      versions:
+        - "12"
+        - "13"
+    - name: EL
+      versions:
+        - "8"
+        - "9"
+
+  galaxy_tags:
+    - system
+    - logging
+    - logrotate
+    - logs
+    - maintenance
+    - compression
+    - disk
+    - storage
+
+dependencies: []

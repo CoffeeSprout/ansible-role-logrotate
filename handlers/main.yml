@@ -1,0 +1,16 @@
+---
+# handlers file for coffeesprout.logrotate
+
+- name: Validate logrotate configuration
+  command: logrotate -d /etc/logrotate.conf
+  changed_when: false
+  failed_when: false
+  register: logrotate_validation
+
+- name: Display validation output
+  debug:
+    var: logrotate_validation.stdout_lines
+  when:
+    - logrotate_validation is defined
+    - logrotate_validation.stdout_lines is defined
+    - logrotate_validation.stdout_lines | length > 0
